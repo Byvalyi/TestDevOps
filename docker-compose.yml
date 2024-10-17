@@ -1,0 +1,72 @@
+version: '3'
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx_container
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - app1
+      - app2
+    networks:
+      - app-network
+
+  app1:
+    build: ./app1
+    container_name: app1_container
+    ports:
+      - "5000:5000"
+    environment:
+      - BROKER_HOST=rabbitmq
+      - BROKER_PORT=5672
+    networks:
+      - app-network
+
+  app2:
+    build: ./app2
+    container_name: app2_container
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      - BROKER_HOST=rabbitmq
+      - BROKER_PORT=5672
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=mydb
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:10
+    container_name: postgres_container
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq_container
+    ports:
+      - "5672:5672"
+      - "15672:15672" # для админки RabbitMQ
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
